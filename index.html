@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PSAT Prep Coach</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" id="brandBtn">PSAT Prep Coach</button>
+    <nav class="topnav" id="topnav">
+      <button data-view="dashboard" class="navbtn active">Dashboard</button>
+      <button data-view="practice" class="navbtn">Practice</button>
+      <button data-view="progress" class="navbtn">Progress</button>
+    </nav>
+  </header>
+
+  <main id="app">
+    <!-- dashboard -->
+    <section id="view-dashboard" class="view">
+      <h1 id="greeting">Ready to improve your score?</h1>
+      <p class="subtitle" id="nextStep">Pick a module to begin. Each one takes about 20–30 minutes.</p>
+      <div id="statRow" class="stat-row"></div>
+      <div id="moduleGrid" class="module-grid"></div>
+      <div id="weakSpots" class="weak-spots"></div>
+    </section>
+
+    <!-- practice (standalone / full-drill) -->
+    <section id="view-practice" class="view">
+      <h1>Practice Drill</h1>
+      <p class="subtitle">Adaptive practice built from your weak areas and wrong answers.</p>
+      <div id="practiceControls" class="controls"></div>
+      <div id="questionBox" class="question-box"></div>
+      <div id="resultFeedback" class="feedback hidden"></div>
+      <div id="drillEnd" class="drill-end hidden"></div>
+    </section>
+
+    <!-- progress -->
+    <section id="view-progress" class="view">
+      <h1>Your Progress</h1>
+      <div id="progressDetail"></div>
+      <button id="resetBtn" class="btn danger">Reset all progress</button>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    Built with official PSAT/NMSQT practice content from College Board.
+    Use the embedded Desmos graphing calculator in every math lesson.
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

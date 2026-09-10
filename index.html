@@ -30,10 +30,18 @@
     <section id="view-practice" class="view">
       <h1>Practice Drill</h1>
       <p class="subtitle">Adaptive practice built from your weak areas and wrong answers.</p>
-      <div id="practiceControls" class="controls"></div>
-      <div id="questionBox" class="question-box"></div>
-      <div id="resultFeedback" class="feedback hidden"></div>
-      <div id="drillEnd" class="drill-end hidden"></div>
+      <div class="practice-layout">
+        <div class="practice-main">
+          <div id="practiceControls" class="controls"></div>
+          <div id="questionBox" class="question-box"></div>
+          <div id="resultFeedback" class="feedback hidden"></div>
+          <div id="drillEnd" class="drill-end hidden"></div>
+        </div>
+        <aside id="calcPanel" class="calc-panel" aria-label="Calculator">
+          <div class="calc-head">Calculator <span class="calc-hint">scratch pad — do any math here</span></div>
+          <div class="calc-holder"><iframe id="calcFrame" src="https://www.desmos.com/calculator?embed" title="Desmos Graphing Calculator" allowfullscreen></iframe></div>
+        </aside>
+      </div>
     </section>
 
     <!-- progress -->

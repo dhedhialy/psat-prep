@@ -277,21 +277,10 @@
       choiceHTML = `<div class="spr-input"><label>Your answer:</label> <input id="sprIn" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 370 or -7"></div>`;
     }
 
-    // Desmos for math questions (after a reveal, or during)
-    let desmos = "";
-    if (q.domain === "MATH" && q.desmos) {
-      desmos = `<div class="desmos-holder"><iframe src="${desmosSrc(q.desmos)}" title="Desmos Graphing Calculator"></iframe></div><div class="desmos-note">Use the calculator to explore before answering.</div>`;
-    } else if (q.domain === "MATH") {
-      // generic graph for math without a specific expression
-      const expr = genericDesmos(q);
-      desmos = `<div class="desmos-holder"><iframe src="${desmosSrc(expr || " ")}" title="Desmos Graphing Calculator"></iframe></div><div class="desmos-note">Draft with the calculator if useful.</div>`;
-    }
-
     box.innerHTML = header + `
       <div class="question-box ${tag}">
         <span class="q-tag ${tag}">${label} · difficulty ${q.diff}/3</span>
         ${body}
-        ${desmos}
         ${choiceHTML}
         <div class="action-row"><button class="btn primary" id="submitBtn" disabled>Check answer</button></div>
       </div>
@@ -321,12 +310,6 @@
         grade(q, null, v);
       });
     }
-  }
-
-  function genericDesmos(q) {
-    // supply a useful graphing expression based on the skill
-    const map = { m_rate: "y=4x", m_pct: "y=0.89x", m_lin: "y=3x-8", m_quad: "y=(x+7)^2+4" };
-    return map[q.skill] || "";
   }
 
   function desmosSrc(expr) {

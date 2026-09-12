@@ -37,15 +37,41 @@
     });
   }
 
+  // Shuffle answer-choice display order so the correct answer isn't always A/B.
+  // Returns a permutation of [0..n-1]; display index d shows choice[order[d]].
+  function choiceOrder(n) {
+    const order = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    return order;
+  }
+
   // ───── State (persisted in localStorage) ─────
   const KEY = "psatcoach.v1";
-  const DEFAULT_STATE = { attempts: {}, qseq: 0 };
+  const DEFAULT_STATE = { attempts: {}, qseq: 0, session: null };
   let state;
   function load() {
     try { state = JSON.parse(localStorage.getItem(KEY)) || { ...DEFAULT_STATE }; }
     catch (e) { state = { ...DEFAULT_STATE }; }
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  // Persist active module/drill session so closing the tab can be resumed.
+  function persistSession() {
+    const s = moduleSession;
+    if (!s) { state.session = null; save(); return; }
+    state.session = {
+      mod: s.module.id,
+      stage: s.stage,
+      at: s.stage === "learn" ? 0 : Math.min(s.idx + 1, s.questions.length - 1),
+      correct: s.correct,
+      qids: s.questions.map(q => q.id),
+      drill: !!s.drill
+    };
+    save();
+  }
 
   // attempts[qid] = [{ ok: bool, skill, diff, ts }]
   function record(qid, ok) {
@@ -128,6 +154,41 @@
       stat(`${allAttempts}`, "Questions answered") +
       stat(`${weak.length}`, "Weak areas to fix");
 
+    // resume banner if an in-progress session exists
+    const sess = state.session;
+    $("#resumeRow").innerHTML = sess ? `
+      <div class="resume-card">
+        <div>
+          <strong>In progress:</strong> ${esc(sess.drill ? "Adaptive drill" : (moduleById(sess.mod) ? moduleById(sess.mod).title : sess.mod))}
+          · question ${sess.stage === "learn" ? "—" : Math.min(sess.at, sess.qids.length)}/${sess.qids.length} (${sess.stage})
+        </div>
+        <div class="action-row" style="margin:0">
+          <button class="btn primary" id="resumeBtn">Resume</button>
+          <button class="btn secondary" id="discardBtn">Discard</button>
+        </div>
+      </div>` : "";
+
+    if (sess) {
+      bind("resumeBtn", function () {
+        moduleSession = {
+          module: sess.drill
+            ? { id: "drill", title: "Adaptive drill", domain: sess.qids.length ? (questionById(sess.qids[0]) || {}).domain || "RW" : "RW", skill: "" }
+            : moduleById(sess.mod),
+          stage: sess.stage,
+          questions: sess.qids.map(questionById).filter(Boolean),
+          idx: sess.stage === "learn" ? 0 : sess.at,
+          correct: sess.correct,
+          drill: sess.drill
+        };
+        renderModuleFlow();
+        showView("practice");
+        persistSession();
+      });
+      bind("discardBtn", function () {
+        state.session = null; save(); renderDashboard();
+      });
+    }
+
     // module grid
     $("#moduleGrid").innerHTML = window.MODULES.map(function (m) {
       const dm = window.DOMAINS[m.domain];
@@ -178,6 +239,7 @@
     moduleSession = { module: mod, stage: "learn", questions: qs.slice(), idx: 0, correct: 0 };
     showView("practice"); // reuse the practice view for module flow
     renderModuleFlow();
+    persistSession();
   }
 
   function renderModuleFlow() {
@@ -270,8 +332,10 @@
 
     let choiceHTML = "";
     if (isMC) {
-      choiceHTML = `<div class="choices">` + q.choices.map(function (c, i) {
-        return `<div class="choice" data-i="${i}"><span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(c)}</span></div>`;
+      const order = choiceOrder(q.choices.length);
+      q.__order = order;
+      choiceHTML = `<div class="choices">` + order.map(function (oi, i) {
+        return `<div class="choice" data-i="${oi}"><span class="key">${String.fromCharCode(65 + i)}</span><span>${esc(q.choices[oi])}</span></div>`;
       }).join("") + `</div>`;
     } else {
       choiceHTML = `<div class="spr-input"><label>Your answer:</label> <input id="sprIn" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 370 or -7"></div>`;
@@ -328,7 +392,8 @@
       correctTxt = String(target);
     } else {
       ok = idx === q.answer;
-      correctTxt = String.fromCharCode(65 + q.answer) + ") " + q.choices[q.answer];
+      const disp = (q.__order || Array.from({ length: q.choices.length }, (_, k) => k)).indexOf(q.answer);
+      correctTxt = String.fromCharCode(65 + disp) + ") " + q.choices[q.answer];
     }
 
     // mark choices
@@ -377,6 +442,7 @@
       actions.push(`<button class="btn primary" id="finishBtn">Finish module</button>`);
     }
     wrap.innerHTML = actions.join("");
+    persistSession();
 
     bind("nextQ", function () { s.idx++; renderModuleFlow(); });
     bind("toCheck", function () {
@@ -405,6 +471,7 @@
     </div>`;
     const params = { section: "all", diff: 2 };
     moduleSession = null;
+    persistSession();
     bind("backDash", function () { showView("dashboard"); });
     bind("again", function () { startDrill("all", 2); });
   }
@@ -432,6 +499,7 @@
       </div>
     </div>`;
     moduleSession = null;
+    persistSession();
     bind("backDash", function () { showView("dashboard"); });
     bind("retryMod", function () { if (s) startModule(s.module.id); });
   }
@@ -501,6 +569,7 @@
       correct: 0
     };
     renderModuleFlow();
+    persistSession();
   }
 
   // ───── Progress view ─────

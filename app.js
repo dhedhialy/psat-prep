@@ -50,7 +50,7 @@
 
   // ───── State (persisted in localStorage) ─────
   const KEY = "psatcoach.v1";
-  const DEFAULT_STATE = { attempts: {}, qseq: 0, session: null };
+  const DEFAULT_STATE = { attempts: {}, qseq: 0, session: null, studySec: 0, studyToday: 0, studyDay: null };
   let state;
   function load() {
     try { state = JSON.parse(localStorage.getItem(KEY)) || { ...DEFAULT_STATE }; }
@@ -58,14 +58,27 @@
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
+  // Study-time logger: count seconds while a question is being worked on and
+  // the tab is visible. Rolls today's counter over at midnight.
+  function studyTick() {
+    if (!moduleSession || moduleSession.stage === "learn") return;
+    if (document.visibilityState !== "visible") return;
+    const d = new Date().toISOString().slice(0, 10);
+    if (state.studyDay !== d) { state.studyDay = d; state.studyToday = 0; }
+    state.studySec += 1;
+    state.studyToday += 1;
+  }
+
   // Persist active module/drill session so closing the tab can be resumed.
-  function persistSession() {
+  // `at` = question index to show on resume. Default idx+1 (the next unanswered),
+  // callers pass an explicit index for non-answer transitions (learn/start/resume).
+  function persistSession(atPos) {
     const s = moduleSession;
     if (!s) { state.session = null; save(); return; }
     state.session = {
       mod: s.module.id,
       stage: s.stage,
-      at: s.stage === "learn" ? 0 : Math.min(s.idx + 1, s.questions.length - 1),
+      at: s.stage === "learn" ? 0 : Math.min(atPos != null ? atPos : s.idx + 1, s.questions.length - 1),
       correct: s.correct,
       qids: s.questions.map(q => q.id),
       drill: !!s.drill
@@ -152,7 +165,8 @@
       stat(`${overall}%`, "Overall accuracy") +
       stat(`${modsDone}/${window.MODULES.length}`, "Modules started") +
       stat(`${allAttempts}`, "Questions answered") +
-      stat(`${weak.length}`, "Weak areas to fix");
+      stat(`${weak.length}`, "Weak areas to fix") +
+      stat(fmtMin(state.studyToday || 0), "Study today");
 
     // resume banner if an in-progress session exists
     const sess = state.session;
@@ -182,7 +196,7 @@
         };
         renderModuleFlow();
         showView("practice");
-        persistSession();
+        persistSession(moduleSession.idx);
       });
       bind("discardBtn", function () {
         state.session = null; save(); renderDashboard();
@@ -226,6 +240,11 @@
   }
   function stat(num, lbl) {
     return `<div class="stat"><div class="num">${num}</div><div class="lbl">${lbl}</div></div>`;
+  }
+  function fmtMin(sec) {
+    const m = Math.floor(sec / 60);
+    if (m >= 60) return `${Math.floor(m / 60)}h${m % 60 ? " " + (m % 60) + "m" : ""}`;
+    return `${m}min`;
   }
 
   // ───── Module flow ─────
@@ -282,6 +301,7 @@
       moduleSession.stage = "practice";
       moduleSession.idx = 0;
       renderModuleFlow();
+      persistSession(0);
     });
   }
 
@@ -450,6 +470,7 @@
       s.idx = 0;
       s.correct = 0;
       renderModuleFlow();
+      persistSession(0);
     });
     bind("finishDrill", function () { finishDrill(); });
     bind("finishBtn", function () { finishModule(); });
@@ -569,7 +590,7 @@
       correct: 0
     };
     renderModuleFlow();
-    persistSession();
+    persistSession(0);
   }
 
   // ───── Progress view ─────
@@ -601,6 +622,8 @@
 
   // ───── boot ─────
   load();
+  setInterval(function () { studyTick(); }, 1000);
+  window.addEventListener("pagehide", function () { save(); });
   // nav
   document.querySelectorAll(".navbtn").forEach(function (b) {
     b.addEventListener("click", function () { showView(b.dataset.view); });
